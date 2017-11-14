@@ -927,6 +927,7 @@ function parse_Skitour(&$textall,$last_id)
 	global $dlim;
 // on garde que la partie int?essante.
 	$entries = explode('</tr>',substr($textall,strpos($textall,'<table class="topos">')));
+	echo "<p>" + count($entries);
 	$textall = '';
 
 // extrait l'ID de la derniere sortie.
@@ -942,7 +943,9 @@ function parse_Skitour(&$textall,$last_id)
 			$lien = substr($lien,0,strpos($lien,'">'));
 // extrait l'ID de la sortie.
 //			$id = strip_tags($items[0]);
-			ereg(',([0-9]+)',$lien,$regs);	$id = $regs[1];
+			//ereg(',([0-9]+)',$lien,$regs);	$id = $regs[1];
+			preg_match('/,([0-9]+)/', $lien, $regs);
+			$id = $regs[1];
 			if ($id > $last_id)
 			{
 				$nom = trim(strip_tags($items[1]));
@@ -956,7 +959,7 @@ function parse_Skitour(&$textall,$last_id)
 				$part = trim(strip_tags($items[7]));
 				$date = trim(strip_tags($items[8]));
 // interprete la date :
-				ereg ("([0-9]{2}).([0-9]{2}).([0-9]{2})", $date, $regs);
+				preg_match("/([0-9]{2}).([0-9]{2}).([0-9]{2})/", $date, $regs);
 				$date = "20{$regs[3]}-{$regs[2]}-{$regs[1]}";
 // pour etre ecrit plus tard :
 				if ($date < $dlim) break;	// pas plus vieux que 1 mois.
@@ -1076,38 +1079,67 @@ function reset_Skitour($nread = 500, $base = 'skitour' )
 	$txt  = $SETTINGS['odir'] . "/$base.txt";
 	$last = $SETTINGS['odir'] . "/$base.last";
 	$ftmp = "$txt.tmp";
-
-	echo "<p>Indexing skitour.fr ...";
-	if ( $fd = @fopen($ftmp,'x') )		// pas d'autre tentative ?
-	{
-		fclose($fd);
-		$textall = @file_get_contents("http://www.skitour.fr/topos/dernieres-sorties.php?nbr=$nread");
-		$retry = 0;
-		while (($textall === FALSE)&&($retry < 3))	// echec de temps en temps, r?ssaye 3 fois.
+            echo "<p>truc";
+	try {
+		echo "<p>Indexing skitour.fr ...";
+		//$fd=fopen('/var/www/html/dam/metaskirando/private/data/toto','wb');
+            //fwrite($fd,"PREEEE");
+            //fclose($fd);
+         //echo "<p>yoyo";
+		if ( $fd = fopen($ftmp,'wb') )		// pas d'autre tentative ?
 		{
-			echo ' retry...';
-			sleep(2);
-			$textall = @file_get_contents('http://www.skitour.fr/topos/dernieres-sorties.php?nbr=$nread');
-			$retry++;
+			fclose($fd);
+			echo "<p> YOYO";
+			$ch = curl_init("http://www.skitour.fr/topos/dernieres-sorties.php?nbr=$nread");
+			curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+			curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $timeout);
+			echo "<p> GO";
+			$textall = curl_exec($ch);
+			curl_close($ch);
+			//~ $textall = @file_get_contents("http://www.skitour.fr/topos/dernieres-sorties.php?nbr=$nread");
+			$retry = 0;
+			while (($textall === FALSE)&&($retry < 3))	// echec de temps en temps, r?ssaye 3 fois.
+			{
+				echo ' retry...';
+				sleep(2);
+				//~ $textall = @file_get_contents('http://www.skitour.fr/topos/dernieres-sorties.php?nbr=$nread');
+				$ch = curl_init("http://www.skitour.fr/topos/dernieres-sorties.php?nbr=$nread");
+				curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+				curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $timeout);
+				echo "<p> GO";
+				$textall = curl_exec($ch);
+				curl_close($ch);
+				$retry++;
+			}
+			if ($textall !== FALSE)
+			{
+				$fd=fopen('/var/www/html/dam/metaskirando/private/data/toto','wb');
+				fwrite($fd,$textall);
+				fclose($fd);
+				$new_id = parse_Skitour($textall,0);
+				$fd = fopen($ftmp, 'wb');
+				fwrite($fd, $textall);
+				fclose($fd);
+				$fd=fopen($last,'wb');
+				fwrite($fd,$new_id);
+				fclose($fd);
+				unlink($txt);
+				rename($ftmp,$txt);
+				echo ' done.</p>';
+			}
+			else
+			{
+				echo ' failed !</p>';
+				unlink($ftmp);
+			}
+			//cleanup_cache($txt);
 		}
-		if ($textall !== FALSE)
-		{
-			$new_id = parse_Skitour($textall,0);
-			$fd=@fopen($ftmp,'w');
-			@fwrite($fd,$textall);
-			@fclose($fd);
-			$fd=@fopen($last,'w');	@fwrite($fd,$new_id);	@fclose($fd);
-			@unlink($txt);
-			rename($ftmp,$txt);
-			echo ' done.</p>';
-		}
-		else
-		{
-			echo ' failed !</p>';
-			unlink($ftmp);
-		}
-//		cleanup_cache($txt);
 	}
+	catch ( Exception $e ) {
+      // send error message if you can
+      echo "ERROR $e";
+      //~ sleep(10);
+    } 
 }
 
 function reset_Skirando($nread = 120, $base = 'c2c' )
@@ -1119,7 +1151,7 @@ function reset_Skirando($nread = 120, $base = 'c2c' )
 	$ftmp = "$txt.tmp";
 
 	echo "<p>Indexing camptocamp.org ...";
-	if ( $fd = @fopen($ftmp,'x') )		// pas d'autre tentative ?
+	if ( $fd = fopen($ftmp,'x') )		// pas d'autre tentative ?
 	{
 		fclose($fd);
 //		$textall = file_get_contents('http://meta.camptocamp.org/outings/query?activity_ids=10&system_id=1&limit=500');
@@ -1127,11 +1159,11 @@ function reset_Skirando($nread = 120, $base = 'c2c' )
 		echo $textall;
 		$new_id = 0;
 		$new_id = parse_Skirando($textall,$new_id);
-		$fd=@fopen($ftmp,'a');
-		@fwrite($fd,$textall);
-		@fclose($fd);
-		$fd = @fopen($last,'w');	@fwrite($fd,$new_id);	@fclose($fd);
-		@unlink($txt);
+		$fd=fopen($ftmp,'a');
+		fwrite($fd,$textall);
+		fclose($fd);
+		$fd = fopen($last,'w');	fwrite($fd,$new_id);	fclose($fd);
+		unlink($txt);
 		rename($ftmp,$txt);
 		echo ' done.</p>';
 	}

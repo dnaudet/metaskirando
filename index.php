@@ -92,16 +92,16 @@ require "sites.inc.php";
 //	echo "cookie 'current' = {$_COOKIE['current']}<br>";
 
 
-//	update_OHM();
-//	update_SNGM();
-//	update_BLMS();
-	update_Bivouak();
+//~ //	update_OHM();
+//~ //	update_SNGM();
+//~ //	update_BLMS();
+	//~ update_Bivouak();
 	update_Skitour();
-	update_Gulliver();
-	update_Skirando();
-//	update_NimpCrew();
-	update_Volopress();
-//	update_CAFisere();
+	//~ update_Gulliver();
+	//~ update_Skirando();
+//~ //	update_NimpCrew();
+	//~ update_Volopress();
+//~ //	update_CAFisere();
 
 load_All($sorties);
 
